@@ -34,25 +34,20 @@ typedef struct
     char direccion[30];
     coordenada coordenada;
     estado stdo;
-} destinatario;
+} paquete;
 typedef sem_t semaphore;
 semaphore mutex;
-semaphore entregados;
 int numPack = 0;
 int fin = 0;
-int idx = 1;
-
-destinatario **espacio;
+int numPendientes=0;
+paquete *bufPaquetes;
 void down(sem_t *);
 void up(sem_t *);
-coordenada masCercano(dron *);
-
+int masCercano(dron *);
 void generarPaq();
 coordenada generarCoordenada();
 int existeCo(coordenada);
-destinatario **generar_matriz(size_t, size_t);
-void free_matriz(destinatario **, size_t);
-
+paquete *generar_Buffer(size_t);
 void asignarDron(dron *);
 
 int main(int argc, char *argv[])
@@ -69,11 +64,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     sem_init(&mutex, 0, 1);
-    sem_init(&entregados, 0, numPack);
 
-    espacio = generar_matriz(X, Y);
+    bufPaquetes = generar_Buffer(numPack);
     generarPaq();
-    printf("paso\n");
+    numPendientes=numPack;
     dron d;
     dron d2;
     dron d3;
@@ -81,11 +75,18 @@ int main(int argc, char *argv[])
     d.ubicacion.x = 0;
     d.ubicacion.y = 0;
     d2.id = 2;
-    d2.ubicacion.x = 56;
-    d2.ubicacion.y = 43;
+    d2.ubicacion.x = 0;
+    d2.ubicacion.y = 0;
     d3.id = 3;
-    d3.ubicacion.x = 12;
-    d3.ubicacion.y = 31;
+    d3.ubicacion.x = 0;
+    d3.ubicacion.y = 0;
+     for (int i = 0; i < numPack; i++)
+    {
+        printf("%s coordenada: %d-%d\n",bufPaquetes[i].nombre,bufPaquetes[i].coordenada.x,bufPaquetes[i].coordenada.y);
+         //printf("mas cercano: %s\n",masCercano(&d).nombre);
+  
+    }
+   
     pthread_create(&dron1, NULL, (void *)asignarDron, (void *)&d);
     pthread_create(&dron2, NULL, (void *)asignarDron, (void *)&d2);
     pthread_create(&dron3, NULL, (void *)asignarDron, (void *)&d3);
@@ -100,6 +101,7 @@ int main(int argc, char *argv[])
 
 void asignarDron(dron *d)
 {
+    int idx;
     coordenada co;
     while (!fin)
     {
@@ -108,148 +110,114 @@ void asignarDron(dron *d)
         {
             co.x = d->ubicacion.x;
             co.y = d->ubicacion.y;
-            d->ubicacion = masCercano(d);
-            if (d->ubicacion.x == -1)
+            idx=masCercano(d);
+            d->ubicacion = bufPaquetes[idx].coordenada;
+            if (idx == -1)
             {
                 fin = 1;
                 up(&mutex);
                 continue;
             }
-            espacio[d->ubicacion.x][d->ubicacion.y].stdo = asignado;
-            numPack--;
-            printf("Paquete de %s asignado al dron %d que esta en %d-%d \n", espacio[d->ubicacion.x][d->ubicacion.y].nombre, d->id, co.x, co.y);
+            bufPaquetes[idx].stdo = asignado;
+            numPendientes--;
+            printf("Paquete de %s asignado al dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, co.x, co.y);
             up(&mutex);
             // sleep(2); //TODO
-
-            espacio[d->ubicacion.x][d->ubicacion.y].stdo = entregado;
-            printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n", espacio[d->ubicacion.x][d->ubicacion.y].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
+            bufPaquetes[idx].stdo = entregado;
+            
+           printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
         }
         else
         {
             fin = 1;
             up(&mutex);
         }
-    }
+   }
 }
 
-coordenada masCercano(dron *d)
+int masCercano(dron *d)
 {
     double distancia = 0.0;
-    coordenada co;
-    co.x = -1;
-    co.y = -1;
+    int idx_paq=-1;
     double menor = X * Y;
     double suma;
-    for (int i = 0; i < X; i++)
+    for (int i = 0; i < numPack; i++)
     {
-        for (int j = 0; j < Y; j++)
-        {
-            if (strstr(espacio[i][j].nombre, "Cliente") != NULL)
+            if (strstr(bufPaquetes[i].nombre, "Cliente") != NULL)
             {
-                if (espacio[i][j].stdo == pendiente)
+                if (bufPaquetes[i].stdo == pendiente)
                 {
-                    suma = pow(d->ubicacion.x - i, 2) + pow(d->ubicacion.y - j, 2);
+                    suma = pow(d->ubicacion.x - bufPaquetes[i].coordenada.x, 2) + pow(d->ubicacion.y - bufPaquetes[i].coordenada.y, 2);
                     distancia = sqrt(suma);
-                    if (distancia <= menor)
+                    if (distancia < menor)
                     {
-
                         menor = distancia;
-                        co.x = i;
-                        co.y = j;
+                        idx_paq=i;   
                     }
                 }
-            }
         }
     }
-    return co;
+    return idx_paq;
 }
 coordenada generarCoordenada()
 {
     coordenada co;
-    co.x = aleatorio();
-    co.y = aleatorio();
+    co.x = aleatorio(X);
+    co.y = aleatorio(X);
     if (co.x == 0 && co.y == 0)
     {
-        co=generarCoordenada();
-        if (existeCo(co)==1)
-        {
-            generarCoordenada;
-        }
+        generarCoordenada();
     }
+    /* if (existeCo(co)==1)
+    {
+        generarCoordenada;
+    }*/
     return co;
 }
 int existeCo(coordenada co){
-    for (int i = 0; i < X; i++)
+    for (int i = 0; i < numPack; i++)
     {
-        for (int j = 0; j < Y; j++)
-        {
-            if (co.x==espacio[i][j].coordenada.x&&co.y==espacio[i][j].coordenada.y)
+            if (co.x==bufPaquetes[i].coordenada.x&&co.y==bufPaquetes[i].coordenada.y)
             {
                 return 1;
             }
-            
-        }
-        
     }
     return 0;
     
 }
 void generarPaq()
 {
-    if (espacio != NULL)
+    if (bufPaquetes != NULL)
     {
-        //TODO
         char cliente[30];
-        destinatario paq;
+        char direccion[40];
+        paquete paq;
         for (int i = 0; i < numPack; i++)
         {
-            sprintf(cliente, "Cliente: %i", i);
+            sprintf(cliente, "Cliente: %i", i+1);
             strcpy(paq.nombre, cliente);
             paq.coordenada.x = generarCoordenada().x;
             paq.coordenada.y = generarCoordenada().y;
-
+            sprintf(direccion,"Calle %d con carrera %d No-%d",paq.coordenada.x,paq.coordenada.y,aleatorio(X));
+            strcpy(paq.direccion,direccion);
             paq.telefono = rand();
             paq.stdo = pendiente;
-            //strcat(paq.nombre,itoa(i));
-            espacio[paq.coordenada.x][paq.coordenada.y] = paq;
+            bufPaquetes[i] = paq;
         }
     }
 }
-destinatario **generar_matriz(size_t n, size_t m)
+/*Recerva bufPaquetes en memoria para el buffer de paquetes */
+paquete *generar_Buffer(size_t n)
 {
-
-    destinatario **aux;
-
+    paquete *aux;
     //Reservar memoria para n apuntadores (arreglos) a double
-    aux = (destinatario **)malloc(n * sizeof(destinatario *));
+    aux = (paquete*)malloc(n * sizeof(paquete));
     if (aux == NULL)
     {
         free(aux);
         return NULL;
     }
-    for (int i = 0; i < n; i++)
-    {
-        aux[i] = malloc(m * sizeof(destinatario));
-        if (aux[i] == NULL)
-        {
-            free_matriz(aux, i);
-            return NULL;
-        }
-    }
     return aux;
-}
-/**
-* Libera una matriz de n x m aleatorios 
-* @param int n filas
-* @param int m columnas
-*/
-void free_matriz(destinatario **m, size_t n)
-{
-    for (int i = 0; i < n; i++)
-    {
-        free(m[i]);
-    }
-    free(m);
 }
 void down(sem_t *s)
 {
