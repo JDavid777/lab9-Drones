@@ -133,8 +133,6 @@ void liberarDrones()
         drones[i] = d;
         pthread_create(&hilos[i], NULL, (void *)asignarDron, (void *)&drones[i]); // crear hilo
     }
-    sleep(1);
-    fin = 1;
     for (int i = 0; i < numDrones; i++)
     {
         pthread_join(hilos[i], NULL); // esperar a que 'terminen' los n hilos
@@ -165,10 +163,10 @@ void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
             printf("Paquete de %s asignado al dron %d que esta en %d-%d a %.2f unidades de distancia. \n", bufPaquetes[idx].nombre, d->id, co.x, co.y,distancia);
             up(&mutex);
             distancia=calcularDistancia(co,bufPaquetes[idx].coordenada);
-            //sleep(distancia); //TODO
+            sleep(distancia/3); //TODO
             bufPaquetes[idx].stdo = entregado;
 
-            printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n\n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
+            printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
         }
         else
         {
