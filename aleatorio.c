@@ -1,10 +1,17 @@
 #include "aleatorio.h"
 
 
-int aleatorio(size_t rango){
+int raleatorio(size_t rango){
     int result;
    
     result=(int)rand()%rango;
+    
+    return result;
+}
+int aleatorio(){
+    int result;
+   
+    result=(int)rand()%RANGO;
     
     return result;
 }
