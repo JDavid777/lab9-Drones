@@ -144,6 +144,7 @@ void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
 {
     int idx;
     coordenada co;
+    double distancia;
     while (!fin)
     {
         down(&mutex);
@@ -161,12 +162,13 @@ void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
             }
             bufPaquetes[idx].stdo = asignado;
             numPendientes--;
-            printf("Paquete de %s asignado al dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, co.x, co.y);
+            printf("Paquete de %s asignado al dron %d que esta en %d-%d a %.2f unidades de distancia. \n", bufPaquetes[idx].nombre, d->id, co.x, co.y,distancia);
             up(&mutex);
-            sleep((calcularDistancia(co,bufPaquetes[idx].coordenada)-100)); //TODO
+            distancia=calcularDistancia(co,bufPaquetes[idx].coordenada);
+            //sleep(distancia); //TODO
             bufPaquetes[idx].stdo = entregado;
 
-            printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
+            printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n\n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
         }
         else
         {
@@ -207,10 +209,10 @@ coordenada generarCoordenada()
     {
         generarCoordenada();
     }
-    /* if (existeCo(co)==1)
+     if (existeCo(co)==1)
     {
         generarCoordenada;
-    }*/
+    }
     return co;
 }
 int existeCo(coordenada co)
