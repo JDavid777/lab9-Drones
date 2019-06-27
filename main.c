@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <math.h>
 
-#define X 100
-#define Y 100
+#define X 100 //Variable para especificar el ancho del "mapa" en el que se crean los paquetes y drones
+#define Y 100//""         ""   ""             alto       ""
 
 typedef enum
 {
@@ -78,30 +78,31 @@ void asignarDron(dron *);
 int masCercano(dron *);
 void down(sem_t *);
 void up(sem_t *);
-double calcularDistancia(coordenada,coordenada);
+double calcularDistancia(coordenada, coordenada);
 
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
-    if (argc!=3)
+    srand(time(NULL)); //Generar una semilla diferente para el rand() por cada ejecucion del programa.
+    if (argc != 3)
     {
-        fprintf(stderr,"Debe especificar el numero de paquetes y drones para la simulación.\n");
-         exit(EXIT_FAILURE);
+        fprintf(stderr, "Debe especificar el numero de paquetes y drones para la simulación.\n");
+        exit(EXIT_FAILURE);
     }
     numPack = atoi(argv[1]);
     numDrones = atoi(argv[2]);
     numPendientes = numPack;
-    if (X * Y < numPack)
+    if (X * Y < numPack) //Validamos que el numero de paquetes no exeda el tamaño del "mapa"
     {
-        fprintf(stderr, "El numero de paquetes es muy grande.");
+        fprintf(stderr, "El numero de paquetes es muy grande.\n");
         exit(EXIT_FAILURE);
     }
     sem_init(&mutex, 0, 1);
+    //Gereamos los componentes que interactuan en la simulacion.
     bufPaquetes = generar_Buffer(numPack);
     generarPaq();
     drones = inicializarDrones();
     liberarDrones();
-
+    //--------------------------------
     free(drones);
     free(bufPaquetes);
     exit(EXIT_SUCCESS);
@@ -121,8 +122,9 @@ void liberarDrones()
 {
     dron d;
     pthread_t *hilos = (pthread_t *)malloc(numDrones * sizeof(pthread_t));
-    if(hilos==NULL){
-        fprintf(stderr,"Error al recervar memoria a los hilos.");
+    if (hilos == NULL)
+    {
+        fprintf(stderr, "Error al recervar memoria a los hilos.");
         free(hilos);
         exit(EXIT_FAILURE);
     }
@@ -140,8 +142,8 @@ void liberarDrones()
 }
 void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
 {
-    int idx;
-    coordenada co;
+    int idx; //Indice del paquete mas cercano pendiente que hay en el bufPaquetes.
+    coordenada co;//Variable coordenada para almacenar la coordenada en la que inicia el dron antes de ser asignado a un paquete.
     double distancia;
     while (!fin)
     {
@@ -151,7 +153,6 @@ void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
             co.x = d->ubicacion.x;
             co.y = d->ubicacion.y;
             idx = masCercano(d);
-            d->ubicacion = bufPaquetes[idx].coordenada;
             if (idx == -1)
             {
                 fin = 1;
@@ -159,13 +160,13 @@ void asignarDron(dron *d) //Metodo que sera ejecutado por los drones.
                 continue;
             }
             bufPaquetes[idx].stdo = asignado;
+            d->ubicacion = bufPaquetes[idx].coordenada;
             numPendientes--;
-            printf("Paquete de %s asignado al dron %d que esta en %d-%d a %.2f unidades de distancia. \n", bufPaquetes[idx].nombre, d->id, co.x, co.y,distancia);
+            printf("Paquete de %s asignado al dron %d que esta en %d-%d a %.2f unidades de distancia. \n", bufPaquetes[idx].nombre, d->id, co.x, co.y, distancia);
             up(&mutex);
-            distancia=calcularDistancia(co,bufPaquetes[idx].coordenada);
-            sleep(distancia/3); //TODO
+            distancia = calcularDistancia(co, bufPaquetes[idx].coordenada);
+            sleep(distancia / 35); //Asumimos que la velocidad de un dron es de 35 unidades para aplicar la formula t=d/v
             bufPaquetes[idx].stdo = entregado;
-
             printf("Paquete de %s entregado por el dron %d que esta en %d-%d \n", bufPaquetes[idx].nombre, d->id, d->ubicacion.x, d->ubicacion.y);
         }
         else
@@ -187,7 +188,7 @@ int masCercano(dron *d)
         {
             if (bufPaquetes[i].stdo == pendiente)
             {
-                distancia=calcularDistancia(d->ubicacion,bufPaquetes[i].coordenada);
+                distancia = calcularDistancia(d->ubicacion, bufPaquetes[i].coordenada);
                 if (distancia < menor)
                 {
                     menor = distancia;
@@ -201,15 +202,11 @@ int masCercano(dron *d)
 coordenada generarCoordenada()
 {
     coordenada co;
-    co.x = raleatorio(X);
-    co.y = raleatorio(Y);
-    if (co.x == 0 && co.y == 0)
+    co.x = raleatorio(X);//genera un aleatorio entre 0 y X
+    co.y = raleatorio(Y);//genrea un aleatorio entre 0 y Y
+    if (existeCo(co) == 1)
     {
         generarCoordenada();
-    }
-     if (existeCo(co)==1)
-    {
-        generarCoordenada;
     }
     return co;
 }
@@ -266,7 +263,8 @@ void up(sem_t *s)
 {
     sem_post(s);
 }
-double calcularDistancia(coordenada co1, coordenada co2){
+double calcularDistancia(coordenada co1, coordenada co2)
+{
     double suma;
     suma = pow(co1.x - co2.x, 2) + pow(co1.y - co2.y, 2);
     return sqrt(suma);
